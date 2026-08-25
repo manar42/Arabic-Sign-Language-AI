@@ -516,6 +516,3 @@ This is currently a personal / educational project.
 
 Suggestions, bug reports, and improvements are welcome through GitHub Issues and Pull Requests.
 
-📄 License
-
-A license has not been selected for this project yet.
