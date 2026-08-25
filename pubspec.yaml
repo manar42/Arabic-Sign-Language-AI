@@ -32,8 +32,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   gif_view: ^1.0.3
   hand_landmarker: ^2.2.0
+  intl: any
   permission_handler: ^11.3.1
   provider: ^6.1.1
   tflite_flutter: ^0.12.1
@@ -44,6 +47,7 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  generate: true
   uses-material-design: true
 
   assets:

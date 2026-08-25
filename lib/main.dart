@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
+import 'design/app_themes.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -12,29 +16,33 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'تطبيق لغة الإشارة',
+      onGenerateTitle: (BuildContext context) =>
+          AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF4F46E5), // Indigo
-          primary: const Color(0xFF4F46E5),
-          secondary: const Color(0xFF10B981), // Emerald
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF3F4F6), // Light gray background
-        useMaterial3: true,
-        fontFamily: 'Roboto', // يمكنك تغيير الخط لاحقاً ليدعم العربية بشكل أفضل
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          foregroundColor: Color(0xFF1F2937),
-          titleTextStyle: TextStyle(
-            color: Color(0xFF1F2937),
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      theme: lightTheme(),
+      darkTheme: darkTheme(),
+      themeMode: ThemeMode.system,
+
+      // Arabic-first: system locales are followed when supported,
+      // otherwise the app falls back to Arabic.
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: (
+        Locale? deviceLocale,
+        Iterable<Locale> supportedLocales,
+      ) {
+        for (final Locale locale in supportedLocales) {
+          if (locale.languageCode == deviceLocale?.languageCode) {
+            return locale;
+          }
+        }
+        return const Locale('ar');
+      },
       home: const HomeScreen(),
     );
   }

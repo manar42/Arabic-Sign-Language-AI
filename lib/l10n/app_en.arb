@@ -1,0 +1,87 @@
+{
+  "@@locale": "en",
+  "appName": "Ishara",
+  "@appName": {
+    "description": "The application name shown in the OS task switcher and home header."
+  },
+  "heroTitle": "Communicate in sign, instantly.",
+  "heroSubtitle": "Translation between Arabic sign language and text, running entirely on your device.",
+  "signToTextTitle": "Sign → Text",
+  "signToTextSubtitle": "Point your camera at your hand",
+  "textToSignTitle": "Text → Sign",
+  "textToSignSubtitle": "Type text and watch it signed",
+  "worksOffline": "Works offline",
+ 
+  "backTooltip": "Back",
+  "handDetected": "Hand detected",
+  "pointHandAtFrame": "Point your hand toward the frame",
+  "noLetterYet": "No letter yet",
+  "detectedLetterLabel": "Detected letter: {letter}",
+  "@detectedLetterLabel": {
+    "placeholders": {
+      "letter": { "type": "String" }
+    }
+  },
+  "initializingCameraAndModel": "Preparing the camera and model…",
+  "initFailedTitle": "Couldn't start the translator",
+  "initFailedDescription": "Something went wrong while preparing the camera or the recognition model. You can try again.",
+  "cameraPermissionTitle": "We need camera access to translate",
+  "cameraPermissionDescription": "Allow the app to use the camera so it can read your signs.",
+  "retry": "Retry",
+  "sentence": "Sentence",
+  "sentencePlaceholder": "Sentence letters will appear here…",
+  "letterCount": "{count, plural, =0{No letters} =1{1 letter} other{{count} letters}}",
+  "@letterCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "addLetter": "Add letter",
+  "insertSpace": "Space",
+  "deleteLastToken": "Delete last character",
+  "clear": "Clear",
+  "clearSentenceTitle": "Clear the sentence?",
+  "clearSentenceDescription": "All collected letters will be deleted.",
+  "cancel": "Cancel",
+  "inputHint": "Type a word or a sentence…",
+  "showSign": "Show sign",
+  "unsupportedShort": "Not available yet",
+  "imageMissing": "Image {name} not found",
+  "@imageMissing": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "currentLetterLabel": "Current letter: {letter}",
+  "@currentLetterLabel": {
+    "placeholders": {
+      "letter": { "type": "String" }
+    }
+  },
+  "letterProgress": "Letter {current} of {total}",
+  "@letterProgress": {
+    "placeholders": {
+      "current": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "letterChipLabel": "Letter {letter}",
+  "@letterChipLabel": {
+    "placeholders": {
+      "letter": { "type": "String" }
+    }
+  },
+  "letterChipUnavailableLabel": "Letter {letter}, not available yet",
+  "@letterChipUnavailableLabel": {
+    "placeholders": {
+      "letter": { "type": "String" }
+    }
+  },
+  "startTypingTitle": "Start typing to begin",
+  "emptyStateDescription": "Letter signs will appear here during playback.",
+  "previousTooltip": "Previous",
+  "playTooltip": "Play",
+  "pauseTooltip": "Pause",
+  "nextTooltip": "Next",
+  "stopTooltip": "Stop"
+}

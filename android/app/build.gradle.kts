@@ -37,6 +37,18 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    sourceSets {
+        getByName("main") {
+            // The hand_landmarker plugin loads its MediaPipe model through the
+            // Android AssetManager from the APK assets root
+            // ("hand_landmarker.task"), while Flutter bundles pubspec assets
+            // under flutter_assets/. Expose the canonical copy in
+            // <projectRoot>/assets/models at the APK assets root so the native
+            // loader can resolve it without duplicating the binary in git.
+            assets.srcDir(rootProject.file("../assets/models"))
+        }
+    }
 }
 
 flutter {

@@ -1,30 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../core/arabic_sign_alphabet.dart';
+
+/// Raw single-frame classification outcome.
+class FrameClassification {
+  const FrameClassification(this.token, this.confidence);
+
+  /// Arabic token from the unified vocabulary.
+  final String token;
+
+  /// The model's own maximum output value for the winning class. Not
+  /// synthesized; frames below the stabilizer threshold simply do not vote.
+  final double confidence;
+}
+
+/// Thin wrapper around the bundled TFLite sign classifier.
+///
+/// Class indexes come from [ArabicSignAlphabet]; this class owns no
+/// duplicated label data.
 class ClassifierService {
   Interpreter? _interpreter;
 
-  final List<String> labels = [
-    'Ain', 'Al', 'Alef', 'Beh', 'Dad', 'Dal',
-    'Feh', 'Ghain', 'Hah', 'Heh', 'Jeem', 'Kaf',
-    'Khah', 'Laa', 'Lam', 'Meem', 'Noon', 'Qaf',
-    'Reh', 'Sad', 'Seen', 'Sheen', 'Tah', 'Teh',
-    'Teh_Marbuta', 'Theh', 'Waw', 'Yeh', 'Zah',
-    'Zain', 'Thal',
-  ];
-
-  final Map<String, String> labelToArabic = {
-    'Ain': 'ع', 'Al': 'ال', 'Alef': 'ا',
-    'Beh': 'ب', 'Dad': 'ض', 'Dal': 'د',
-    'Feh': 'ف', 'Ghain': 'غ', 'Hah': 'ح',
-    'Heh': 'ه', 'Jeem': 'ج', 'Kaf': 'ك',
-    'Khah': 'خ', 'Laa': 'لا', 'Lam': 'ل',
-    'Meem': 'م', 'Noon': 'ن', 'Qaf': 'ق',
-    'Reh': 'ر', 'Sad': 'ص', 'Seen': 'س',
-    'Sheen': 'ش', 'Tah': 'ط', 'Teh': 'ت',
-    'Teh_Marbuta': 'ة', 'Theh': 'ث', 'Waw': 'و',
-    'Yeh': 'ي', 'Zah': 'ظ', 'Zain': 'ز',
-    'Thal': 'ذ',
-  };
+  bool get isReady => _interpreter != null;
 
   Future<void> loadModel() async {
     _interpreter = await Interpreter.fromAsset(
@@ -32,20 +30,49 @@ class ClassifierService {
     );
   }
 
-  String classify(List<double> landmarks) {
-    var input = [landmarks];
-    var output = List.filled(1 * labels.length, 0.0)
-        .reshape([1, labels.length]);
+  /// Best-effort single-frame inference. Returns null when the model is not
+  /// loaded or inference fails, so callers can treat it as "no result".
+  ///
+  /// When [debugOutputs] is supplied, the raw class-output vector is copied
+  /// into it for diagnostics; production behavior is unchanged otherwise.
+  FrameClassification? classify(
+    List<double> landmarks, {
+    List<double>? debugOutputs,
+  }) {
+    final interpreter = _interpreter;
+    if (interpreter == null) return null;
 
-    _interpreter!.run(input, output);
+    final output = List.filled(
+      ArabicSignAlphabet.classCount,
+      0.0,
+    ).reshape([1, ArabicSignAlphabet.classCount]);
 
-    int maxIdx = 0;
-    for (int i = 1; i < output[0].length; i++) {
-      if (output[0][i] > output[0][maxIdx]) maxIdx = i;
+    try {
+      interpreter.run([landmarks], output);
+    } catch (e) {
+      debugPrint('Classifier inference failed: $e');
+      return null;
     }
 
-    final englishLabel = labels[maxIdx];
-    // بيرجع الحرف العربي بدل الإنجليزي
-    return labelToArabic[englishLabel] ?? englishLabel;
+    final flat = <double>[
+      for (var i = 0; i < ArabicSignAlphabet.classCount; i++)
+        (output[0][i] as num).toDouble(),
+    ];
+    debugOutputs?.setAll(0, flat);
+
+    var maxIndex = 0;
+    for (var i = 1; i < flat.length; i++) {
+      if (flat[i] > flat[maxIndex]) maxIndex = i;
+    }
+
+    return FrameClassification(
+      ArabicSignAlphabet.tokenForClass(maxIndex).arabic,
+      flat[maxIndex],
+    );
+  }
+
+  void dispose() {
+    _interpreter?.close();
+    _interpreter = null;
   }
 }
