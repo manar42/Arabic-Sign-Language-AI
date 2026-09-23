@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/arabic_sign_alphabet.dart';
+import '../services/tts_service.dart';
 import '../design/app_colors.dart';
 import '../design/app_spacing.dart';
 import '../design/app_typography.dart';
@@ -55,6 +56,7 @@ class _TextToSignScreenState extends State<TextToSignScreen> {
 
   @override
   void dispose() {
+    TtsService.instance.stop();
     // Invalidate any in-flight playback loop before tearing down.
     _playbackGeneration++;
     _controller.dispose();
@@ -96,12 +98,22 @@ class _TextToSignScreenState extends State<TextToSignScreen> {
         AppTextField(
           controller: _controller,
           hintText: loc.inputHint,
-          suffixIcon: Icon(Icons.text_fields, color: scheme.primary),
+          suffixIcon: IconButton(
+            icon: Icon(Icons.volume_up_rounded, color: scheme.primary),
+            tooltip: loc.speakSentence,
+            onPressed: () {
+              final String text = _controller.text.trim();
+              if (text.isNotEmpty) {
+                final String lang = Localizations.localeOf(context).languageCode;
+                TtsService.instance.speak(text, languageCode: lang);
+              }
+            },
+          ),
         ),
         const SizedBox(height: AppSpacing.m),
         AppButton.primary(
           label: loc.showSign,
-          icon: Icons.play_arrow,
+          icon: Icons.play_arrow_rounded,
           expand: true,
           onPressed: _playing ? null : _play,
         ),

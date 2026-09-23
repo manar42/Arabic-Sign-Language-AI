@@ -166,4 +166,111 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get stopTooltip => 'إيقاف';
+
+  @override
+  String get speakSentence => 'نطق الجملة';
+
+  @override
+  String get speaking => 'جارٍ النطق…';
+
+  @override
+  String get copySentence => 'نسخ الجملة';
+
+  @override
+  String get sentenceCopied => 'تم نسخ الجملة إلى الحافظة';
+
+  @override
+  String get familyAssistTitle => 'نداء العائلة السريع';
+
+  @override
+  String get familyAssistSubtitle =>
+      'تواصل فوري مع الأهل عبر واتساب ورسائل SMS';
+
+  @override
+  String get contactCardTitle => 'جهة اتصال الأهل للطوارئ';
+
+  @override
+  String get noContactConfigured => 'اضغط هنا لضبط رقم الأهل';
+
+  @override
+  String get configureContact => 'تعديل الرقم';
+
+  @override
+  String get contactNameHint => 'الاسم (مثال: أبي، أمي، أخي)';
+
+  @override
+  String get contactPhoneHint => 'رقم الهاتف (مع كود الدولة مثل +20 أو 01...)';
+
+  @override
+  String get save => 'حفظ';
+
+  @override
+  String get sendViaWhatsApp => 'واتساب';
+
+  @override
+  String get sendViaSms => 'رسالة SMS';
+
+  @override
+  String get customMessageHint => 'اكتب رسالة مخصصة هنا…';
+
+  @override
+  String get sendCustomMessage => 'إرسال رسالة مخصصة';
+
+  @override
+  String get contactRequiredToast => 'يرجى تسجيل رقم هاتف القريب أولاً';
+
+  @override
+  String get handsFreeMode => 'التدفق التلقائي';
+
+  @override
+  String get handsFreeModeTooltip =>
+      'التقاط الحرف آلياً عند تثبيت الإشارة ثانية واحدة بدون لمس الشاشة';
+
+  @override
+  String get autoSpaceAdded => 'تمت إضافة مسافة آلياً';
+
+  @override
+  String get emergencySosTitle => 'نداء استغاثة طارئ (SOS)';
+
+  @override
+  String get emergencySosSubtitle =>
+      'إرسال استغاثة عاجلة للأهل مع رابط خريطة موقعك الحالي (GPS)';
+
+  @override
+  String get emergencyCenterTitle => 'مركز الطوارئ واستغاثة الأهل';
+
+  @override
+  String get emergencyCenterSubtitle =>
+      'استغاثة فورية وتواصل مباشر لمجتمع الصم وضعاف السمع';
+
+  @override
+  String get primaryContact => 'القريب الأول (رئيسي)';
+
+  @override
+  String get secondaryContact => 'القريب الثاني (بديل)';
+
+  @override
+  String get addSecondaryContact => 'إضافة جهة اتصال ثانية';
+
+  @override
+  String get countryCode => 'كود الدولة';
+
+  @override
+  String get locatingGps => 'جاري تحديد موقعك (GPS)...';
+
+  @override
+  String get gpsAttached => 'تم إرفاق الموقع الجغرافي';
+
+  @override
+  String get sendToBoth => 'إرسال للجهتين معاً';
+
+  @override
+  String get selectRecipient => 'إرسال إلى:';
+
+  @override
+  String get sosSentSuccess => 'تم إطلاق نداء الاستغاثة بنجاح';
+
+  @override
+  String get phoneValidationHint =>
+      'أدخل الرقم (سيتم ضبط كود الدولة والتحويل آلياً)';
 }

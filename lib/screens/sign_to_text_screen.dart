@@ -2,6 +2,7 @@ import 'dart:math' show sqrt;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:camera/camera.dart';
 import 'package:hand_landmarker/hand_landmarker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +10,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../core/arabic_sign_alphabet.dart';
 import '../core/sign_detection_stabilizer.dart';
 import '../services/classifier_service.dart';
+import '../services/tts_service.dart';
 import '../design/app_colors.dart';
 import '../design/app_radius.dart';
 import '../design/app_spacing.dart';
@@ -36,6 +38,12 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   /// classifier are synchronous, so this keeps the UI thread responsive.
   static const Duration _minInferenceInterval = Duration(milliseconds: 66);
 
+  /// Hands-free auto-capture: steady hold duration required before auto-capturing a letter.
+  static const Duration _autoCaptureHoldDuration = Duration(milliseconds: 850);
+
+  /// Hands-free auto-space: duration of hand absence required before inserting a space.
+  static const Duration _autoSpaceSilenceDuration = Duration(milliseconds: 1400);
+
   /// Normalized-coordinate delta below which the landmark overlay is not
   /// considered changed, letting steady-hand frames skip rebuilds entirely.
   static const double _overlayEpsilon = 0.0025;
@@ -43,6 +51,20 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   /// MediaPipe hand topology.
   static const int _landmarkCount = 21;
   static const int _coordinatesPerLandmark = 3;
+
+  /// hand_landmarker returns landmarks in the camera sensor's native
+  /// coordinate space, which is rotated relative to the device portrait
+  /// frame. For a back camera with sensorOrientation = 90 (most Android
+  /// devices), the sensor x-axis points downward and the sensor y-axis
+  /// points left. The classifier was trained on upright portrait landmarks
+  /// (x = right, y = down), so before we feed landmarks into the classifier
+  /// — and before we draw the overlay — we must rotate them back:
+  ///   x_portrait = 1 − y_sensor
+  ///   y_portrait = x_sensor
+  ///
+  /// This 90° rotation applies for sensorOrientation = 90. We store the
+  /// sensor orientation at camera-init time and use it at inference time.
+  int _sensorOrientation = 90;
 
   CameraController? _cameraController;
   HandLandmarkerPlugin? _handLandmarker;
@@ -66,6 +88,20 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   /// Real model confidence behind [_stableDetectedSign]; 0 when none.
   double _stableConfidence = 0;
   List<Offset> _landmarkPoints = const <Offset>[];
+
+  /// Hands-Free auto-capture mode flag.
+  bool _autoCaptureEnabled = true;
+
+  /// Tracking state for Hands-Free hold-to-capture.
+  DateTime? _signHoldStartTime;
+  String? _holdingSign;
+  double _holdProgress = 0.0;
+  String? _lastAutoCapturedToken;
+  bool _isCapturedFlash = false;
+
+  /// Tracking state for Hands-Free auto-space insertion.
+  DateTime? _noHandStartTime;
+  bool _autoSpaceTriggered = false;
 
   DateTime _lastInferenceAt = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -181,6 +217,10 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
       orElse: () => cameras.first,
     );
 
+    // Capture sensor orientation so _processFrame can apply the correct
+    // landmark coordinate rotation.
+    _sensorOrientation = camera.sensorOrientation;
+
     final controller = CameraController(
       camera,
       ResolutionPreset.medium,
@@ -258,12 +298,31 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
             landmarks.length < _landmarkCount ? landmarks.length : _landmarkCount;
         for (var i = 0; i < count; i++) {
           final point = landmarks[i];
-          _classifyInput[i * 3] = point.x;
-          _classifyInput[i * 3 + 1] = point.y;
+          // Apply coordinate rotation to convert from sensor space to upright
+          // portrait space. For sensorOrientation = 90 (typical Android back
+          // camera): x_portrait = 1 − y_sensor, y_portrait = x_sensor.
+          // For sensorOrientation = 270 (some front cameras when remapped to
+          // back logic): x_portrait = y_sensor, y_portrait = 1 − x_sensor.
+          final double lx, ly;
+          if (_sensorOrientation == 270) {
+            lx = point.y;
+            ly = 1.0 - point.x;
+          } else {
+            // Default: 90° (and 0°/180° fall back to raw for robustness).
+            lx = 1.0 - point.y;
+            ly = point.x;
+          }
+          _classifyInput[i * 3] = lx;
+          _classifyInput[i * 3 + 1] = ly;
           _classifyInput[i * 3 + 2] = point.z;
         }
+        // Build overlay points using the same rotated coordinates so the
+        // landmark skeleton aligns with the visible hand in the preview.
         points = <Offset>[
-          for (final point in landmarks) Offset(point.x, point.y),
+          for (final point in landmarks)
+            _sensorOrientation == 270
+                ? Offset(point.y, 1.0 - point.x)
+                : Offset(1.0 - point.y, point.x),
         ];
         classification = _classifier.classify(
           _classifyInput,
@@ -283,7 +342,7 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   }
 
   /// Stabilizes the raw frame result and rebuilds only when something
-  /// meaningfully changed: the accepted letter or visible landmarks.
+  /// meaningfully changed: the accepted letter, visible landmarks, or hold progress.
   void _applyDetection(
     FrameClassification? classification,
     List<Offset> points,
@@ -295,6 +354,7 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
 
     final bool signChanged = stable != _stableDetectedSign;
     final bool overlayChanged = !_nearlySame(points, _landmarkPoints);
+    bool stateNeedsRebuild = signChanged || overlayChanged;
 
     // Edge-triggered bring-up logging: fires only when the accepted letter
     // changes (including losing one), never per frame.
@@ -305,7 +365,88 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
       );
     }
 
-    if ((!signChanged && !overlayChanged) || !mounted) return;
+    // Hands-Free Auto-Capture & Auto-Space tracking
+    if (_autoCaptureEnabled) {
+      final now = DateTime.now();
+
+      if (stable != null && stable.isNotEmpty) {
+        // Hand is producing a valid stable sign
+        _noHandStartTime = null;
+        _autoSpaceTriggered = false;
+
+        if (stable != _holdingSign) {
+          _holdingSign = stable;
+          _signHoldStartTime = now;
+          _holdProgress = 0.0;
+          _isCapturedFlash = false;
+          stateNeedsRebuild = true;
+        } else {
+          // Same sign is continuously being held
+          if (_lastAutoCapturedToken == stable) {
+            // Already captured this sign; maintain 1.0 progress without re-capturing
+            if (_holdProgress != 1.0) {
+              _holdProgress = 1.0;
+              stateNeedsRebuild = true;
+            }
+          } else if (_signHoldStartTime != null) {
+            final elapsed = now.difference(_signHoldStartTime!).inMilliseconds;
+            final newProgress = (elapsed / _autoCaptureHoldDuration.inMilliseconds).clamp(0.0, 1.0);
+            if ((newProgress - _holdProgress).abs() > 0.03 || newProgress >= 1.0) {
+              _holdProgress = newProgress;
+              stateNeedsRebuild = true;
+            }
+
+            if (newProgress >= 1.0) {
+              // Auto-capture the letter!
+              _sentenceTokens.add(stable);
+              _lastAutoCapturedToken = stable;
+              _isCapturedFlash = true;
+              HapticFeedback.mediumImpact();
+              stateNeedsRebuild = true;
+
+              // Reset flash after brief celebratory glow
+              Future.delayed(const Duration(milliseconds: 350), () {
+                if (mounted && _isCapturedFlash) {
+                  setState(() => _isCapturedFlash = false);
+                }
+              });
+            }
+          }
+        }
+      } else {
+        // No stable sign detected
+        if (_holdingSign != null || _holdProgress > 0) {
+          _holdingSign = null;
+          _signHoldStartTime = null;
+          _holdProgress = 0.0;
+          _isCapturedFlash = false;
+          stateNeedsRebuild = true;
+        }
+
+        // Check for hand absence for Auto-Space
+        if (points.isEmpty) {
+          // Hand is away from camera
+          _lastAutoCapturedToken = null;
+          _noHandStartTime ??= now;
+
+          if (!_autoSpaceTriggered && _canInsertSpace) {
+            final noHandElapsed = now.difference(_noHandStartTime!).inMilliseconds;
+            if (noHandElapsed >= _autoSpaceSilenceDuration.inMilliseconds) {
+              _sentenceTokens.add(' ');
+              _autoSpaceTriggered = true;
+              HapticFeedback.lightImpact();
+              stateNeedsRebuild = true;
+            }
+          }
+        } else {
+          // Hand is in view but moving / unsteady
+          _noHandStartTime = null;
+          _autoSpaceTriggered = false;
+        }
+      }
+    }
+
+    if (!stateNeedsRebuild || !mounted) return;
 
     setState(() {
       if (signChanged) {
@@ -409,6 +550,7 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
 
   @override
   void dispose() {
+    TtsService.instance.stop();
     _teardownPipeline();
     _classifier.dispose();
     super.dispose();
@@ -449,6 +591,30 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   void _deleteLastToken() {
     if (_sentenceTokens.isEmpty) return;
     setState(() => _sentenceTokens.removeLast());
+  }
+
+  void _speakSentence() {
+    final String text = _sentence.trim();
+    if (text.isEmpty) return;
+    final String lang = Localizations.localeOf(context).languageCode;
+    TtsService.instance.speak(text, languageCode: lang);
+  }
+
+  void _copySentence(AppLocalizations loc) {
+    final String text = _sentence.trim();
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          loc.sentenceCopied,
+          style: AppTextStyles.bodyM.copyWith(color: Colors.white),
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -518,7 +684,7 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
     }
   }
 
-  Widget _statusPill(AppLocalizations loc, bool reducedMotion) {
+  Widget _topOverlayBar(AppLocalizations loc, bool reducedMotion) {
     final (StatusPillState state, String message) =
         _stableDetectedSign.isNotEmpty
             ? (StatusPillState.detected, loc.handDetected)
@@ -527,20 +693,96 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
     return Align(
       alignment: AlignmentDirectional.topCenter,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.l),
-        child: AnimatedSwitcher(
-          duration: reducedMotion
-              ? Duration.zero
-              : const Duration(milliseconds: 200),
-          child: Semantics(
-            // Announce detection-status changes automatically.
-            liveRegion: true,
-            child: StatusPill(
-              key: ValueKey<StatusPillState>(state),
-              state: state,
-              label: message,
+        padding: const EdgeInsets.all(AppSpacing.m),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Detection Status Pill
+            AnimatedSwitcher(
+              duration: reducedMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 200),
+              child: Semantics(
+                // Announce detection-status changes automatically.
+                liveRegion: true,
+                child: StatusPill(
+                  key: ValueKey<StatusPillState>(state),
+                  state: state,
+                  label: message,
+                ),
+              ),
             ),
-          ),
+            // Hands-Free Auto Flow Mode Toggle Pill
+            Tooltip(
+              message: loc.handsFreeModeTooltip,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() {
+                      _autoCaptureEnabled = !_autoCaptureEnabled;
+                      _holdingSign = null;
+                      _signHoldStartTime = null;
+                      _holdProgress = 0.0;
+                      _isCapturedFlash = false;
+                    });
+                  },
+                  borderRadius: AppRadius.brStadium,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.m,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _autoCaptureEnabled
+                          ? const Color(0xFF0D9488).withValues(alpha: 0.9)
+                          : AppCameraColors.statusPillBackground,
+                      borderRadius: AppRadius.brStadium,
+                      border: Border.all(
+                        color: _autoCaptureEnabled
+                            ? const Color(0xFF2DD4BF)
+                            : Colors.white24,
+                        width: 1.2,
+                      ),
+                      boxShadow: _autoCaptureEnabled
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF0D9488).withValues(alpha: 0.4),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _autoCaptureEnabled
+                              ? Icons.auto_awesome_rounded
+                              : Icons.touch_app_rounded,
+                          size: 16,
+                          color: _autoCaptureEnabled
+                              ? const Color(0xFF5EEAD4)
+                              : Colors.white70,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          loc.handsFreeMode,
+                          style: AppTextStyles.labelM.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -596,6 +838,8 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
                   // Real model confidence behind the accepted detection.
                   confidence:
                       _stableConfidence > 0 ? _stableConfidence : null,
+                  holdProgress: _autoCaptureEnabled ? _holdProgress : 0.0,
+                  isCaptured: _isCapturedFlash,
                   semanticLabel:
                       loc.detectedLetterLabel(_stableDetectedSign),
                 ),
@@ -630,7 +874,7 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
                   : HandGuideState.idle,
             ),
             LandmarkOverlay(points: _landmarkPoints),
-            _statusPill(loc, reducedMotion),
+            _topOverlayBar(loc, reducedMotion),
             _resultFocal(loc, reducedMotion),
           ],
         ],
@@ -694,6 +938,8 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
   }
 
   Widget _controls(ColorScheme scheme, AppLocalizations loc) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -701,20 +947,21 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
         Row(
           children: [
             Expanded(
+              flex: 3,
               child: AppButton.primary(
                 label: loc.addLetter,
-                icon: Icons.add,
+                icon: Icons.add_rounded,
                 onPressed:
                     _stableDetectedSign.isEmpty ? null : _acceptDetectedToken,
               ),
             ),
             const SizedBox(width: AppSpacing.s),
             Expanded(
-              child: AppButton.outline(
-                label: loc.clear,
-                icon: Icons.delete_outline,
-                onPressed:
-                    _sentenceTokens.isEmpty ? null : () => _confirmAndClear(loc),
+              flex: 2,
+              child: AppButton.tonal(
+                label: loc.insertSpace,
+                icon: Icons.space_bar_rounded,
+                onPressed: _canInsertSpace ? _insertWordBoundary : null,
               ),
             ),
           ],
@@ -722,19 +969,115 @@ class _SignToTextScreenState extends State<SignToTextScreen> {
         const SizedBox(height: AppSpacing.s),
         Row(
           children: [
+            // Voice Output (TTS) Button
             Expanded(
-              child: AppButton.tonal(
-                label: loc.insertSpace,
-                icon: Icons.space_bar,
-                onPressed: _canInsertSpace ? _insertWordBoundary : null,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: TtsService.instance.isSpeaking,
+                builder: (context, speaking, _) {
+                  return ElevatedButton.icon(
+                    onPressed: _sentenceTokens.isEmpty
+                        ? null
+                        : (speaking
+                            ? TtsService.instance.stop
+                            : _speakSentence),
+                    icon: Icon(
+                      speaking
+                          ? Icons.stop_circle_rounded
+                          : Icons.volume_up_rounded,
+                      size: 20,
+                      color: speaking
+                          ? Colors.white
+                          : (_sentenceTokens.isEmpty
+                              ? scheme.onSurface.withValues(alpha: 0.38)
+                              : Colors.white),
+                    ),
+                    label: Text(
+                      speaking ? loc.speaking : loc.speakSentence,
+                      style: AppTextStyles.labelL.copyWith(
+                        color: speaking
+                            ? Colors.white
+                            : (_sentenceTokens.isEmpty
+                                ? scheme.onSurface.withValues(alpha: 0.38)
+                                : Colors.white),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: speaking
+                          ? const Color(0xFFEF4444)
+                          : (isDark
+                              ? const Color(0xFF0D9488)
+                              : const Color(0xFF0F766E)),
+                      disabledBackgroundColor: isDark
+                          ? const Color(0xFF1E293B)
+                          : const Color(0xFFE2E8F0),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.m,
+                        vertical: AppSpacing.m,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: speaking ? 4 : 0,
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: AppSpacing.s),
-            AppIconButton(
-              icon: Icons.backspace_outlined,
-              tooltip: loc.deleteLastToken,
-              onPressed:
-                  _sentenceTokens.isEmpty ? null : _deleteLastToken,
+            // Copy sentence button
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: scheme.outline.withValues(alpha: isDark ? 0.3 : 0.6),
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 20),
+                tooltip: loc.copySentence,
+                color: scheme.onSurface,
+                onPressed: _sentenceTokens.isEmpty ? null : () => _copySentence(loc),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            // Backspace button
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: scheme.outline.withValues(alpha: isDark ? 0.3 : 0.6),
+                ),
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.backspace_outlined, size: 20),
+                tooltip: loc.deleteLastToken,
+                color: scheme.onSurface,
+                onPressed: _sentenceTokens.isEmpty ? null : _deleteLastToken,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            // Clear sentence button
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: scheme.outline.withValues(alpha: isDark ? 0.3 : 0.6),
+                ),
+              ),
+              child: IconButton(
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: scheme.error,
+                ),
+                tooltip: loc.clear,
+                onPressed:
+                    _sentenceTokens.isEmpty ? null : () => _confirmAndClear(loc),
+              ),
             ),
           ],
         ),

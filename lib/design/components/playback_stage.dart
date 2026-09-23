@@ -6,10 +6,8 @@ import '../app_spacing.dart';
 import '../app_typography.dart';
 
 /// Rounded image stage for sign playback visuals.
-///
-/// Responsive by construction: fills the parent width and keeps a
-/// ~4:5 aspect ratio. Images always use BoxFit.contain. Loading and
-/// error placeholders are built in; no playback logic lives here.
+/// Features a luxury frosted frame, deep ambient drop shadow,
+/// and smooth content transitions.
 class PlaybackStage extends StatelessWidget {
   const PlaybackStage({
     super.key,
@@ -18,19 +16,12 @@ class PlaybackStage extends StatelessWidget {
     this.isLoading = false,
     this.errorMessage,
     this.semanticLabel,
-    this.borderRadius = AppRadius.brLarge,
+    this.borderRadius = AppRadius.brExtraLarge,
   });
 
-  /// Image to present; rendered with BoxFit.contain.
   final ImageProvider? image;
-
-  /// Escape hatch for fully custom stage content (used when neither
-  /// loading nor error applies).
   final Widget? child;
-
   final bool isLoading;
-
-  /// When set (and not loading) an inline error placeholder is shown.
   final String? errorMessage;
   final String? semanticLabel;
   final BorderRadiusGeometry borderRadius;
@@ -38,21 +29,18 @@ class PlaybackStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    // The image stage is intentionally LIGHT in both themes: the sign
-    // images are photographic assets with inconsistent backgrounds, so
-    // they need a stable light surface (approved design exception).
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final Color stageText = AppColors.light.textSecondary;
 
     Widget content;
     if (isLoading) {
       content = Center(
         child: SizedBox(
-          width: 28,
-          height: 28,
+          width: 32,
+          height: 32,
           child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: AppColors.light.primary,
+            strokeWidth: 3,
+            color: scheme.primary,
           ),
         ),
       );
@@ -63,14 +51,13 @@ class PlaybackStage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 28, color: stageText),
+              Icon(Icons.error_outline_rounded, size: 32, color: stageText),
               const SizedBox(height: AppSpacing.s),
               Flexible(
                 child: Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style:
-                      AppTextStyles.bodyM.copyWith(color: stageText),
+                  style: AppTextStyles.bodyM.copyWith(color: stageText),
                 ),
               ),
             ],
@@ -93,11 +80,19 @@ class PlaybackStage extends StatelessWidget {
       aspectRatio: 4 / 5,
       child: Container(
         decoration: BoxDecoration(
-          // Forced-light stage surface; the outline stays adaptive so
-          // the light stage remains framed against the dark background.
-          color: AppColors.light.surfaceVariant,
+          color: Colors.white,
           borderRadius: borderRadius,
-          border: Border.all(color: scheme.outline),
+          border: Border.all(
+            color: scheme.outline.withValues(alpha: isDark ? 0.3 : 0.6),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: content,

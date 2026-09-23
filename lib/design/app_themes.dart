@@ -74,7 +74,7 @@ ThemeData _buildTheme(AppColorTokens c, {required Color inversePrimary}) {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
-        textStyle: const WidgetStatePropertyAll(AppTextStyles.labelL),
+        textStyle: WidgetStatePropertyAll(AppTextStyles.labelL),
         backgroundColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.disabled)
               ? c.disabledBg
@@ -95,7 +95,7 @@ ThemeData _buildTheme(AppColorTokens c, {required Color inversePrimary}) {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(
-        textStyle: const WidgetStatePropertyAll(AppTextStyles.labelL),
+        textStyle: WidgetStatePropertyAll(AppTextStyles.labelL),
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) =>
               states.contains(WidgetState.disabled) ? c.disabledFg : c.primary,
@@ -111,7 +111,7 @@ ThemeData _buildTheme(AppColorTokens c, {required Color inversePrimary}) {
     ),
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(
-        textStyle: const WidgetStatePropertyAll(AppTextStyles.labelL),
+        textStyle: WidgetStatePropertyAll(AppTextStyles.labelL),
         foregroundColor: WidgetStateProperty.resolveWith(
           (states) =>
               states.contains(WidgetState.disabled) ? c.disabledFg : c.primary,

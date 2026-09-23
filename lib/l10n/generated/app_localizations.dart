@@ -361,6 +361,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get stopTooltip;
+
+  /// No description provided for @speakSentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Speak sentence'**
+  String get speakSentence;
+
+  /// No description provided for @speaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Speaking…'**
+  String get speaking;
+
+  /// No description provided for @copySentence.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy sentence'**
+  String get copySentence;
+
+  /// No description provided for @sentenceCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence copied to clipboard'**
+  String get sentenceCopied;
+
+  /// No description provided for @familyAssistTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Family Quick Assist'**
+  String get familyAssistTitle;
+
+  /// No description provided for @familyAssistSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant communication with family via WhatsApp & SMS'**
+  String get familyAssistSubtitle;
+
+  /// No description provided for @contactCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency Family Contact'**
+  String get contactCardTitle;
+
+  /// No description provided for @noContactConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to configure family contact number'**
+  String get noContactConfigured;
+
+  /// No description provided for @configureContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Contact'**
+  String get configureContact;
+
+  /// No description provided for @contactNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Name (e.g. Dad, Mom, Brother)'**
+  String get contactNameHint;
+
+  /// No description provided for @contactPhoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone (with country code e.g. +20...)'**
+  String get contactPhoneHint;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @sendViaWhatsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'WhatsApp'**
+  String get sendViaWhatsApp;
+
+  /// No description provided for @sendViaSms.
+  ///
+  /// In en, this message translates to:
+  /// **'SMS'**
+  String get sendViaSms;
+
+  /// No description provided for @customMessageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a custom message here…'**
+  String get customMessageHint;
+
+  /// No description provided for @sendCustomMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Custom Message'**
+  String get sendCustomMessage;
+
+  /// No description provided for @contactRequiredToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Please set up family phone number first'**
+  String get contactRequiredToast;
+
+  /// No description provided for @handsFreeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-Flow'**
+  String get handsFreeMode;
+
+  /// No description provided for @handsFreeModeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatically captures letter when held steadily for 1s without touching screen'**
+  String get handsFreeModeTooltip;
+
+  /// No description provided for @autoSpaceAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-space added'**
+  String get autoSpaceAdded;
+
+  /// No description provided for @emergencySosTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency SOS Alert'**
+  String get emergencySosTitle;
+
+  /// No description provided for @emergencySosSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Send instant SOS to family with your live GPS map link'**
+  String get emergencySosSubtitle;
+
+  /// No description provided for @emergencyCenterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency & Family SOS Center'**
+  String get emergencyCenterTitle;
+
+  /// No description provided for @emergencyCenterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Instant distress alerts and direct assist for deaf users'**
+  String get emergencyCenterSubtitle;
+
+  /// No description provided for @primaryContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Contact'**
+  String get primaryContact;
+
+  /// No description provided for @secondaryContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup Contact'**
+  String get secondaryContact;
+
+  /// No description provided for @addSecondaryContact.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Backup Contact'**
+  String get addSecondaryContact;
+
+  /// No description provided for @countryCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Country Code'**
+  String get countryCode;
+
+  /// No description provided for @locatingGps.
+  ///
+  /// In en, this message translates to:
+  /// **'Acquiring GPS location...'**
+  String get locatingGps;
+
+  /// No description provided for @gpsAttached.
+  ///
+  /// In en, this message translates to:
+  /// **'GPS location attached'**
+  String get gpsAttached;
+
+  /// No description provided for @sendToBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to Both Contacts'**
+  String get sendToBoth;
+
+  /// No description provided for @selectRecipient.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to:'**
+  String get selectRecipient;
+
+  /// No description provided for @sosSentSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Emergency alert dispatched successfully'**
+  String get sosSentSuccess;
+
+  /// No description provided for @phoneValidationHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter phone number (country code & digits formatted automatically)'**
+  String get phoneValidationHint;
 }
 
 class _AppLocalizationsDelegate

@@ -5,6 +5,9 @@ import 'design/app_themes.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 
+/// Global locale notifier so the user can easily toggle Arabic/English live in the app.
+final ValueNotifier<Locale> appLocaleNotifier = ValueNotifier<Locale>(const Locale('ar'));
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
@@ -15,35 +18,27 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (BuildContext context) =>
-          AppLocalizations.of(context).appName,
-      debugShowCheckedModeBanner: false,
-      theme: lightTheme(),
-      darkTheme: darkTheme(),
-      themeMode: ThemeMode.system,
-
-      // Arabic-first: system locales are followed when supported,
-      // otherwise the app falls back to Arabic.
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      localeResolutionCallback: (
-        Locale? deviceLocale,
-        Iterable<Locale> supportedLocales,
-      ) {
-        for (final Locale locale in supportedLocales) {
-          if (locale.languageCode == deviceLocale?.languageCode) {
-            return locale;
-          }
-        }
-        return const Locale('ar');
+    return ValueListenableBuilder<Locale>(
+      valueListenable: appLocaleNotifier,
+      builder: (BuildContext context, Locale currentLocale, _) {
+        return MaterialApp(
+          onGenerateTitle: (BuildContext context) =>
+              AppLocalizations.of(context).appName,
+          debugShowCheckedModeBanner: false,
+          theme: lightTheme(),
+          darkTheme: darkTheme(),
+          themeMode: ThemeMode.system,
+          locale: currentLocale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const HomeScreen(),
+        );
       },
-      home: const HomeScreen(),
     );
   }
 }

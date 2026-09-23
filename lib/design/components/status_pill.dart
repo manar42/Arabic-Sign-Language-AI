@@ -8,11 +8,8 @@ import '../app_typography.dart';
 /// Presentation-oriented states for [StatusPill].
 enum StatusPillState { searching, detected, holding, ready, error }
 
-/// Compact stadium pill for camera/status overlays.
-///
-/// Defaults come from the camera tokens so the pill stays legible on a
-/// live camera feed in both themes. Purely presentational: it never owns
-/// detection logic.
+/// Compact luxury stadium pill for camera/status overlays.
+/// Features frosted glass backdrop, glowing status dot, and sharp typography.
 class StatusPill extends StatelessWidget {
   const StatusPill({
     super.key,
@@ -26,11 +23,7 @@ class StatusPill extends StatelessWidget {
 
   final StatusPillState state;
   final String label;
-
-  /// Optional icon override; otherwise derived from [state].
   final IconData? icon;
-
-  /// All colors are optional overrides; defaults use the camera tokens.
   final Color? backgroundColor;
   final Color? foregroundColor;
   final Color? accentColor;
@@ -38,28 +31,23 @@ class StatusPill extends StatelessWidget {
   Color _defaultAccent() => switch (state) {
         StatusPillState.searching => AppCameraColors.guideIdle,
         StatusPillState.detected => AppCameraColors.guideDetected,
-        // The holding/ready/error accents reuse the dark-palette tokens
-        // because they stay readable on the dark translucent pill over
-        // any camera feed.
-        StatusPillState.holding => AppColorsDark().warning,
-        StatusPillState.ready => AppColorsDark().primary,
-        StatusPillState.error => AppColorsDark().error,
+        StatusPillState.holding => const Color(0xFFF59E0B),
+        StatusPillState.ready => const Color(0xFF10B981),
+        StatusPillState.error => const Color(0xFFEF4444),
       };
 
   IconData _defaultIcon() => switch (state) {
-        StatusPillState.searching => Icons.search,
-        StatusPillState.detected => Icons.check,
-        StatusPillState.holding => Icons.pan_tool,
-        StatusPillState.ready => Icons.check_circle,
-        StatusPillState.error => Icons.error_outline,
+        StatusPillState.searching => Icons.lens_blur_rounded,
+        StatusPillState.detected => Icons.check_circle_rounded,
+        StatusPillState.holding => Icons.pan_tool_rounded,
+        StatusPillState.ready => Icons.verified_rounded,
+        StatusPillState.error => Icons.error_rounded,
       };
 
   @override
   Widget build(BuildContext context) {
     final Color background =
-        backgroundColor ?? AppCameraColors.statusPillBackground;
-    // White foreground is intentional here: the pill floats on the live
-    // camera feed (dark scrim) regardless of app theme.
+        backgroundColor ?? const Color(0xDD0B0F17);
     final Color foreground = foregroundColor ?? Colors.white;
     final Color accent = accentColor ?? _defaultAccent();
 
@@ -67,9 +55,24 @@ class StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: AppRadius.brStadium,
+        border: Border.all(
+          color: accent.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: accent.withValues(alpha: 0.15),
+            blurRadius: 8,
+          ),
+        ],
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.m,
+        horizontal: AppSpacing.l,
         vertical: AppSpacing.s,
       ),
       child: Row(
@@ -82,7 +85,10 @@ class StatusPill extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.labelL.copyWith(color: foreground),
+              style: AppTextStyles.labelL.copyWith(
+                color: foreground,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

@@ -19,16 +19,6 @@
 
 ---
 
-## 📸 Screenshots
-
-<p align="center">
-  <img src="assets/images/1.jpg" width="22%" alt="Ishara Screenshot 1">
-  <img src="assets/images/2.jpg" width="22%" alt="Ishara Screenshot 2">
-  <img src="assets/images/3.jpg" width="22%" alt="Ishara Screenshot 3">
-  <img src="assets/images/4.jpg" width="22%" alt="Ishara Screenshot 4">
-</p>
-
----
 
 ## 🌟 Overview
 
